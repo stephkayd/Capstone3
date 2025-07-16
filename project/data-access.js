@@ -50,10 +50,10 @@ async function addCustomer(newCustomer) {
   try {
     const customersCollection = await connect();
     const result = await customersCollection.insertOne(newCustomer);
-    return ["success", result.insertedId, null];
+    return ['success', result.insertedId, null];
   } catch (err) {
     console.log(err.message);
-    return ["fail", null, err.message];
+    return ['fail', null, err.message];
   }
 }
 
@@ -62,7 +62,7 @@ async function getCustomerById(id) {
     const customersCollection = await connect();
     const customer = await customersCollection.findOne({ id: +id });
     if (!customer) {
-      return [null, "invalid customer number"];
+      return [null, 'invalid customer number'];
     }
     return [customer, null];
   } catch (err) {
@@ -71,4 +71,29 @@ async function getCustomerById(id) {
   }
 }
 
-module.exports = { getCustomers, resetCustomers, addCustomer, getCustomerById };
+async function updateCustomer(updatedCustomer) {
+  try {
+    const customersCollection = await connect();
+    const filter = { id: updatedCustomer.id };
+    const update = { $set: updatedCustomer };
+    const result = await customersCollection.updateOne(filter, update);
+    if (result.modifiedCount === 1) {
+      return ['one record updated', null];
+    } else if (result.matchedCount === 0) {
+      return ['no matching record found', null];
+    } else {
+      return ['no changes made', null];
+    }
+  } catch (err) {
+    console.log(err.message);
+    return [null, err.message];
+  }
+}
+
+module.exports = {
+  getCustomers,
+  resetCustomers,
+  addCustomer,
+  getCustomerById,
+  updateCustomer,
+};
