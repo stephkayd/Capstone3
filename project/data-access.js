@@ -16,15 +16,10 @@ async function connect() {
   return collection;
 }
 
-// Existing getCustomers with error handling
 async function getCustomers() {
   try {
     const customersCollection = await connect();
     const customers = await customersCollection.find().toArray();
-
-    // Commented out simulated error - can be enabled if needed
-    // throw { message: 'an error occured' };
-
     return [customers, null];
   } catch (err) {
     console.log(err.message);
@@ -32,7 +27,6 @@ async function getCustomers() {
   }
 }
 
-// Existing resetCustomers function (unchanged)
 async function resetCustomers() {
   const initialCustomers = [
     { id: 0, name: 'Mary Jackson', email: 'maryj@abc.com', password: 'maryj' },
@@ -42,16 +36,9 @@ async function resetCustomers() {
 
   try {
     const customersCollection = await connect();
-
-    // Delete all existing records
     await customersCollection.deleteMany({});
-
-    // Insert initial customers
     await customersCollection.insertMany(initialCustomers);
-
-    // Get count of records
     const count = await customersCollection.countDocuments();
-
     return [`Data reset successful. There are now ${count} customers.`, null];
   } catch (err) {
     console.log(err.message);
@@ -59,7 +46,6 @@ async function resetCustomers() {
   }
 }
 
-// New addCustomer function
 async function addCustomer(newCustomer) {
   try {
     const customersCollection = await connect();
@@ -71,4 +57,18 @@ async function addCustomer(newCustomer) {
   }
 }
 
-module.exports = { getCustomers, resetCustomers, addCustomer };
+async function getCustomerById(id) {
+  try {
+    const customersCollection = await connect();
+    const customer = await customersCollection.findOne({ id: +id });
+    if (!customer) {
+      return [null, "invalid customer number"];
+    }
+    return [customer, null];
+  } catch (err) {
+    console.log(err.message);
+    return [null, err.message];
+  }
+}
+
+module.exports = { getCustomers, resetCustomers, addCustomer, getCustomerById };
