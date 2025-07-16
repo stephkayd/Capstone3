@@ -1,15 +1,12 @@
-// data-access.js
-
 const { MongoClient } = require('mongodb');
 
-const url = 'mongodb://localhost:27017';  // Connection URL to local MongoDB
+const url = 'mongodb://localhost:27017';
 const dbName = 'custdb';
 
 const client = new MongoClient(url);
 
 let collection;
 
-// Connect to MongoDB and get the customers collection
 async function connect() {
   if (!collection) {
     await client.connect();
@@ -19,10 +16,20 @@ async function connect() {
   return collection;
 }
 
-// getCustomers method: fetches all customers from the collection
+// getCustomers with error handling; simulated error is commented out
 async function getCustomers() {
-  const customersCollection = await connect();
-  return customersCollection.find().toArray();
+  try {
+    const customersCollection = await connect();
+    const customers = await customersCollection.find().toArray();
+
+    // Simulated error - uncomment to test error handling
+    // throw { message: 'an error occured' };
+
+    return [customers, null];
+  } catch (err) {
+    console.log(err.message);
+    return [null, err.message];
+  }
 }
 
 module.exports = { getCustomers };
