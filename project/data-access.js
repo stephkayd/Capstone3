@@ -32,7 +32,7 @@ async function getCustomers() {
   }
 }
 
-// New resetCustomers function to reset data in the customers collection
+// Existing resetCustomers function (unchanged)
 async function resetCustomers() {
   const initialCustomers = [
     { id: 0, name: 'Mary Jackson', email: 'maryj@abc.com', password: 'maryj' },
@@ -59,4 +59,16 @@ async function resetCustomers() {
   }
 }
 
-module.exports = { getCustomers, resetCustomers };
+// New addCustomer function
+async function addCustomer(newCustomer) {
+  try {
+    const customersCollection = await connect();
+    const result = await customersCollection.insertOne(newCustomer);
+    return ["success", result.insertedId, null];
+  } catch (err) {
+    console.log(err.message);
+    return ["fail", null, err.message];
+  }
+}
+
+module.exports = { getCustomers, resetCustomers, addCustomer };
