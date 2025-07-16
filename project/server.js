@@ -22,6 +22,21 @@ app.get('/customers', async (req, res) => {
   }
 });
 
+// New reset endpoint
+app.get('/reset', async (req, res) => {
+  try {
+    const [result, err] = await da.resetCustomers();
+    if (result) {
+      res.send(result);
+    } else {
+      res.status(500).send(err);
+    }
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    res.status(500).send('Server error');
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
