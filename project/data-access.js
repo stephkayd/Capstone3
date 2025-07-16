@@ -90,10 +90,27 @@ async function updateCustomer(updatedCustomer) {
   }
 }
 
+// New function for Stage08
+async function deleteCustomerById(id) {
+  try {
+    const customersCollection = await connect();
+    const result = await customersCollection.deleteOne({ id: +id });
+    if (result.deletedCount === 1) {
+      return ['one record deleted', null];
+    } else {
+      return ['no record deleted', null];
+    }
+  } catch (err) {
+    console.log(err.message);
+    return [null, err.message];
+  }
+}
+
 module.exports = {
   getCustomers,
   resetCustomers,
   addCustomer,
   getCustomerById,
   updateCustomer,
+  deleteCustomerById,
 };

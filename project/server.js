@@ -103,7 +103,23 @@ app.put('/customers/:id', async (req, res) => {
   }
 });
 
+// DELETE customer by id (Stage08)
+app.delete('/customers/:id', async (req, res) => {
+  const id = req.params.id;
+
+  try {
+    const [message, errMessage] = await da.deleteCustomerById(id);
+    if (message) {
+      res.send(message);
+    } else {
+      res.status(404).send(errMessage);
+    }
+  } catch (error) {
+    console.error('Unexpected error:', error);
+    res.status(500).send('Server error');
+  }
+});
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });
-git 
