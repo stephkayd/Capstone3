@@ -1,16 +1,52 @@
 const express = require('express');
 const path = require('path');
-const bodyParser = require('body-parser');
-
+const cors = require('cors');
 const da = require('./data-access');
+const apiKeyMiddleware = require('./middleware/apiKeyMiddleware');
 
 const app = express();
 const port = 4000;
 
-app.use(bodyParser.json());
-app.use(express.static(path.join(__dirname, 'public')));
+// Enable CORS early
+app.use(cors());
 
-// Reset endpoint
+// Parse JSON bodies
+app.use(express.json());
+
+// === API Routes first ===
+
+// GET all customers - protected
+app.get('/customers', apiKeyMiddleware, async (req, res) => {
+  try {
+    const [customers, err] = await da.getCustomers();
+    if (customers) {
+      res.json(customers);
+    } else {
+      res.status(500).send(err);
+    }
+  } catch (error) {
+    console.error('Error in GET /customers:', error);
+    res.status(500).send('Server error');
+  }
+});
+
+// GET customer by id - protected
+app.get('/customers/:id', apiKeyMiddleware, async (req, res) => {
+  const id = Number(req.params.id);
+  try {
+    const [customer, err] = await da.getCustomerById(id);
+    if (customer) {
+      res.json(customer);
+    } else {
+      res.status(404).send(err);
+    }
+  } catch (error) {
+    console.error('Error in GET /customers/:id:', error);
+    res.status(500).send('Server error');
+  }
+});
+
+// GET reset (unprotected)
 app.get('/reset', async (req, res) => {
   try {
     const [result, err] = await da.resetCustomers();
@@ -20,70 +56,37 @@ app.get('/reset', async (req, res) => {
       res.status(500).send(err);
     }
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Error in GET /reset:', error);
     res.status(500).send('Server error');
   }
 });
 
-// GET all customers
-app.get('/customers', async (req, res) => {
-  try {
-    const [cust, err] = await da.getCustomers();
-    if (cust) {
-      res.send(cust);
-    } else {
-      res.status(500).send(err);
-    }
-  } catch (error) {
-    console.error('Unexpected error:', error);
-    res.status(500).send('Server error');
-  }
-});
-
-// GET customer by id
-app.get('/customers/:id', async (req, res) => {
-  try {
-    const id = req.params.id;
-    const [customer, err] = await da.getCustomerById(id);
-    if (customer) {
-      res.send(customer);
-    } else {
-      res.status(404).send(err);
-    }
-  } catch (error) {
-    console.error('Unexpected error:', error);
-    res.status(500).send('Server error');
-  }
-});
-
-// POST add new customer
-app.post('/customers', async (req, res) => {
+// POST new customer - protected
+app.post('/customers', apiKeyMiddleware, async (req, res) => {
   const newCustomer = req.body;
-
-  if (!newCustomer || Object.keys(newCustomer).length === 0) {
+  if (!newCustomer) {
     return res.status(400).send('missing request body');
   }
-
   try {
-    const [status, id, errMessage] = await da.addCustomer(newCustomer);
+    const [status, id, err] = await da.addCustomer(newCustomer);
     if (status === 'success') {
       newCustomer._id = id;
-      res.status(201).send(newCustomer);
+      res.status(201).json(newCustomer);
     } else {
-      res.status(400).send(errMessage);
+      res.status(400).send(err);
     }
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Error in POST /customers:', error);
     res.status(500).send('Server error');
   }
 });
 
-// PUT update existing customer
-app.put('/customers/:id', async (req, res) => {
+// PUT update customer - protected
+app.put('/customers/:id', apiKeyMiddleware, async (req, res) => {
   const updatedCustomer = req.body;
   const id = req.params.id;
 
-  if (!updatedCustomer || Object.keys(updatedCustomer).length === 0) {
+  if (!updatedCustomer) {
     return res.status(400).send('missing request body');
   }
 
@@ -91,35 +94,37 @@ app.put('/customers/:id', async (req, res) => {
   updatedCustomer.id = +id;
 
   try {
-    const [message, errMessage] = await da.updateCustomer(updatedCustomer);
+    const [message, err] = await da.updateCustomer(updatedCustomer);
     if (message) {
       res.send(message);
     } else {
-      res.status(400).send(errMessage);
+      res.status(400).send(err);
     }
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Error in PUT /customers/:id:', error);
     res.status(500).send('Server error');
   }
 });
 
-// DELETE customer by id (Stage08)
-app.delete('/customers/:id', async (req, res) => {
-  const id = req.params.id;
-
+// DELETE customer - protected
+app.delete('/customers/:id', apiKeyMiddleware, async (req, res) => {
+  const id = Number(req.params.id);
   try {
-    const [message, errMessage] = await da.deleteCustomerById(id);
+    const [message, err] = await da.deleteCustomerById(id);
     if (message) {
       res.send(message);
     } else {
-      res.status(404).send(errMessage);
+      res.status(404).send(err);
     }
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('Error in DELETE /customers/:id:', error);
     res.status(500).send('Server error');
   }
 });
+
+// === Static file serving after routes ===
+app.use(express.static(path.join(__dirname, 'public')));
 
 app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`Server running at http://localhost:${port}`);
 });

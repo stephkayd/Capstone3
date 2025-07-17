@@ -1,8 +1,6 @@
 const { MongoClient } = require('mongodb');
 
 const url = 'mongodb://localhost:27017';
-const dbName = 'custdb';
-
 const client = new MongoClient(url);
 
 let collection;
@@ -10,107 +8,115 @@ let collection;
 async function connect() {
   if (!collection) {
     await client.connect();
-    const db = client.db(dbName);
+    const db = client.db('custdb');
     collection = db.collection('customers');
   }
-  return collection;
 }
 
+// Get all customers
 async function getCustomers() {
+  await connect();
   try {
-    const customersCollection = await connect();
-    const customers = await customersCollection.find().toArray();
+    const customers = await collection.find().toArray();
     return [customers, null];
   } catch (err) {
-    console.log(err.message);
+    console.error('Error fetching customers:', err);
     return [null, err.message];
   }
 }
 
+// Reset customers collection to default data
 async function resetCustomers() {
-  const initialCustomers = [
-    { id: 0, name: 'Mary Jackson', email: 'maryj@abc.com', password: 'maryj' },
-    { id: 1, name: 'Karen Addams', email: 'karena@abc.com', password: 'karena' },
-    { id: 2, name: 'Scott Ramsey', email: 'scottr@abc.com', password: 'scottr' },
+  await connect();
+  const defaultCustomers = [
+    { id: 0, name: "Mary Jackson", email: "maryj@abc.com", password: "maryj" },
+    { id: 1, name: "Karen Addams", email: "karena@abc.com", password: "karena" },
+    { id: 2, name: "Scott Ramsey", email: "scottr@abc.com", password: "scottr" }
   ];
-
   try {
-    const customersCollection = await connect();
-    await customersCollection.deleteMany({});
-    await customersCollection.insertMany(initialCustomers);
-    const count = await customersCollection.countDocuments();
-    return [`Data reset successful. There are now ${count} customers.`, null];
-  } catch (err) {
-    console.log(err.message);
-    return [null, err.message];
+    await collection.deleteMany({});
+    await collection.insertMany(defaultCustomers);
+    const count = await collection.countDocuments();
+    return [`Reset complete. ${count} records now in collection.`, null];
+  } catch (error) {
+    console.error('Error resetting customers:', error);
+    return [null, error.message];
   }
 }
 
+// Add a new customer
 async function addCustomer(newCustomer) {
+  await connect();
   try {
-    const customersCollection = await connect();
-    const result = await customersCollection.insertOne(newCustomer);
+    const result = await collection.insertOne(newCustomer);
     return ['success', result.insertedId, null];
-  } catch (err) {
-    console.log(err.message);
-    return ['fail', null, err.message];
+  } catch (error) {
+    console.error('Error adding customer:', error);
+    return ['fail', null, error.message];
   }
 }
 
+// Get customer by id
 async function getCustomerById(id) {
+  await connect();
   try {
-    const customersCollection = await connect();
-    const customer = await customersCollection.findOne({ id: +id });
-    if (!customer) {
+    const customer = await collection.findOne({ id: +id });
+    if (customer) {
+      return [customer, null];
+    } else {
       return [null, 'invalid customer number'];
     }
-    return [customer, null];
-  } catch (err) {
-    console.log(err.message);
-    return [null, err.message];
+  } catch (error) {
+    return [null, error.message];
   }
 }
 
+module.exports = {
+  // ... other exports ...
+  getCustomerById,
+};
+
+
+// Update customer
 async function updateCustomer(updatedCustomer) {
+  await connect();
   try {
-    const customersCollection = await connect();
     const filter = { id: updatedCustomer.id };
-    const update = { $set: updatedCustomer };
-    const result = await customersCollection.updateOne(filter, update);
+    const updateDoc = { $set: updatedCustomer };
+    const result = await collection.updateOne(filter, updateDoc);
     if (result.modifiedCount === 1) {
       return ['one record updated', null];
-    } else if (result.matchedCount === 0) {
-      return ['no matching record found', null];
     } else {
-      return ['no changes made', null];
+      return [null, 'no record updated'];
     }
-  } catch (err) {
-    console.log(err.message);
-    return [null, err.message];
+  } catch (error) {
+    console.error('Error updating customer:', error);
+    return [null, error.message];
   }
 }
 
-// New function for Stage08
+// Delete customer by id
 async function deleteCustomerById(id) {
+  await connect();
   try {
-    const customersCollection = await connect();
-    const result = await customersCollection.deleteOne({ id: +id });
+    const result = await collection.deleteOne({ id: +id });
     if (result.deletedCount === 1) {
       return ['one record deleted', null];
     } else {
-      return ['no record deleted', null];
+      return [null, 'no record deleted'];
     }
-  } catch (err) {
-    console.log(err.message);
-    return [null, err.message];
+  } catch (error) {
+    console.error('Error deleting customer:', error);
+    return [null, error.message];
   }
 }
 
+// Export all functions in one statement
 module.exports = {
   getCustomers,
   resetCustomers,
   addCustomer,
   getCustomerById,
   updateCustomer,
-  deleteCustomerById,
+  deleteCustomerById
 };
