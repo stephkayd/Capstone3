@@ -11,10 +11,14 @@ async function connect() {
     const db = client.db('custdb');
     collection = db.collection('customers');
 
-    // Create unique indexes on 'id' and 'email' fields
-    // These will only create the index if it does not already exist
-    await collection.createIndex({ id: 1 }, { unique: true });
-    await collection.createIndex({ email: 1 }, { unique: true });
+    // Wrap index creation in try/catch to catch errors and log them
+    try {
+      await collection.createIndex({ id: 1 }, { unique: true });
+      await collection.createIndex({ email: 1 }, { unique: true });
+      console.log('Indexes created or confirmed on "id" and "email".');
+    } catch (error) {
+      console.error('Error creating indexes:', error);
+    }
   }
 }
 
@@ -53,24 +57,29 @@ async function resetCustomers() {
 async function addCustomer(newCustomer) {
   await connect();
   try {
-    // Check for existing customer with same id or email to prevent duplicates
+    // Ensure id is a number for consistent querying
+    const idNum = Number(newCustomer.id);
+
+    // Check for existing customer with same id or email
     const existing = await collection.findOne({
       $or: [
-        { id: newCustomer.id },
+        { id: idNum },
         { email: newCustomer.email }
       ]
     });
+
     if (existing) {
       return ['fail', null, 'Customer with this id or email already exists'];
     }
 
+    // Insert new customer with id as number
+    newCustomer.id = idNum;
     const result = await collection.insertOne(newCustomer);
     return ['success', result.insertedId, null];
   } catch (error) {
     console.error('Error adding customer:', error);
 
-    // Handle duplicate key error from MongoDB unique index
-    if (error.code === 11000) {
+    if (error.code === 11000) { // Duplicate key error
       return ['fail', null, 'Duplicate key error: customer with this id or email already exists'];
     }
 
@@ -82,7 +91,8 @@ async function addCustomer(newCustomer) {
 async function getCustomerById(id) {
   await connect();
   try {
-    const customer = await collection.findOne({ id: +id });
+    const idNum = Number(id);
+    const customer = await collection.findOne({ id: idNum });
     if (customer) {
       return [customer, null];
     } else {
@@ -97,7 +107,7 @@ async function getCustomerById(id) {
 async function updateCustomer(updatedCustomer) {
   await connect();
   try {
-    const filter = { id: updatedCustomer.id };
+    const filter = { id: Number(updatedCustomer.id) };
     const updateDoc = { $set: updatedCustomer };
     const result = await collection.updateOne(filter, updateDoc);
     if (result.modifiedCount === 1) {
@@ -115,7 +125,8 @@ async function updateCustomer(updatedCustomer) {
 async function deleteCustomerById(id) {
   await connect();
   try {
-    const result = await collection.deleteOne({ id: +id });
+    const idNum = Number(id);
+    const result = await collection.deleteOne({ id: idNum });
     if (result.deletedCount === 1) {
       return ['one record deleted', null];
     } else {
