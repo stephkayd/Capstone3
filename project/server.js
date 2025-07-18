@@ -13,6 +13,37 @@ app.use(cors());
 // Parse JSON bodies
 app.use(express.json());
 
+// Simple validation middleware for customer data on POST and PUT
+function validateCustomer(req, res, next) {
+  const customer = req.body;
+
+  if (!customer || typeof customer !== 'object') {
+    return res.status(400).send('Request body must be a JSON object');
+  }
+
+  // For POST: 'id' may not be sent since it is auto-generated; for PUT: id comes from URL
+  // So, require name, email, password for both.
+  const { name, email, password } = customer;
+
+  if (typeof name !== 'string' || name.trim() === '') {
+    return res.status(400).send('Customer name is required and must be a non-empty string');
+  }
+  if (typeof email !== 'string' || email.trim() === '') {
+    return res.status(400).send('Customer email is required and must be a non-empty string');
+  }
+  if (typeof password !== 'string' || password.trim() === '') {
+    return res.status(400).send('Customer password is required and must be a non-empty string');
+  }
+
+  // Additional simple email format check (optional)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    return res.status(400).send('Customer email format is invalid');
+  }
+
+  next();
+}
+
 // === API Routes first ===
 
 // GET all customers - protected
@@ -20,7 +51,7 @@ app.get('/customers', apiKeyMiddleware, async (req, res) => {
   try {
     const [customers, err] = await da.getCustomers();
     if (customers) {
-      res.json(customers);
+      res.status(200).json(customers);
     } else {
       res.status(500).send(err);
     }
@@ -36,9 +67,9 @@ app.get('/customers/:id', apiKeyMiddleware, async (req, res) => {
   try {
     const [customer, err] = await da.getCustomerById(id);
     if (customer) {
-      res.json(customer);
+      res.status(200).json(customer);
     } else {
-      res.status(404).send(err);
+      res.status(404).send(err || 'Customer not found');
     }
   } catch (error) {
     console.error('Error in GET /customers/:id:', error);
@@ -51,7 +82,7 @@ app.get('/reset', async (req, res) => {
   try {
     const [result, err] = await da.resetCustomers();
     if (result) {
-      res.send(result);
+      res.status(200).send(result);
     } else {
       res.status(500).send(err);
     }
@@ -62,10 +93,10 @@ app.get('/reset', async (req, res) => {
 });
 
 // POST new customer - protected
-app.post('/customers', apiKeyMiddleware, async (req, res) => {
+app.post('/customers', apiKeyMiddleware, validateCustomer, async (req, res) => {
   const newCustomer = req.body;
   if (!newCustomer) {
-    return res.status(400).send('missing request body');
+    return res.status(400).send('Missing request body');
   }
   try {
     const [status, id, err] = await da.addCustomer(newCustomer);
@@ -82,23 +113,26 @@ app.post('/customers', apiKeyMiddleware, async (req, res) => {
 });
 
 // PUT update customer - protected
-app.put('/customers/:id', apiKeyMiddleware, async (req, res) => {
+app.put('/customers/:id', apiKeyMiddleware, validateCustomer, async (req, res) => {
   const updatedCustomer = req.body;
   const id = req.params.id;
 
   if (!updatedCustomer) {
-    return res.status(400).send('missing request body');
+    return res.status(400).send('Missing request body');
   }
 
+  // Remove _id to avoid conflicts and set id from URL param
   delete updatedCustomer._id;
   updatedCustomer.id = +id;
 
   try {
     const [message, err] = await da.updateCustomer(updatedCustomer);
     if (message) {
-      res.send(message);
+      // Successful update, send 200 OK with message
+      res.status(200).send(message);
     } else {
-      res.status(400).send(err);
+      // No record updated means id not found - respond 404
+      res.status(404).send(err || 'Customer not found');
     }
   } catch (error) {
     console.error('Error in PUT /customers/:id:', error);
@@ -112,9 +146,9 @@ app.delete('/customers/:id', apiKeyMiddleware, async (req, res) => {
   try {
     const [message, err] = await da.deleteCustomerById(id);
     if (message) {
-      res.send(message);
+      res.status(200).send(message);
     } else {
-      res.status(404).send(err);
+      res.status(404).send(err || 'Customer not found');
     }
   } catch (error) {
     console.error('Error in DELETE /customers/:id:', error);
