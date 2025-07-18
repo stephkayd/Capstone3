@@ -10,6 +10,11 @@ async function connect() {
     await client.connect();
     const db = client.db('custdb');
     collection = db.collection('customers');
+
+    // Create unique indexes on 'id' and 'email' fields
+    // These will only create the index if it does not already exist
+    await collection.createIndex({ id: 1 }, { unique: true });
+    await collection.createIndex({ email: 1 }, { unique: true });
   }
 }
 
@@ -48,10 +53,27 @@ async function resetCustomers() {
 async function addCustomer(newCustomer) {
   await connect();
   try {
+    // Check for existing customer with same id or email to prevent duplicates
+    const existing = await collection.findOne({
+      $or: [
+        { id: newCustomer.id },
+        { email: newCustomer.email }
+      ]
+    });
+    if (existing) {
+      return ['fail', null, 'Customer with this id or email already exists'];
+    }
+
     const result = await collection.insertOne(newCustomer);
     return ['success', result.insertedId, null];
   } catch (error) {
     console.error('Error adding customer:', error);
+
+    // Handle duplicate key error from MongoDB unique index
+    if (error.code === 11000) {
+      return ['fail', null, 'Duplicate key error: customer with this id or email already exists'];
+    }
+
     return ['fail', null, error.message];
   }
 }
@@ -70,12 +92,6 @@ async function getCustomerById(id) {
     return [null, error.message];
   }
 }
-
-module.exports = {
-  // ... other exports ...
-  getCustomerById,
-};
-
 
 // Update customer
 async function updateCustomer(updatedCustomer) {
@@ -111,7 +127,6 @@ async function deleteCustomerById(id) {
   }
 }
 
-// Export all functions in one statement
 module.exports = {
   getCustomers,
   resetCustomers,
